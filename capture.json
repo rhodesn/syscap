@@ -1,0 +1,32 @@
+{
+    "commands": [
+        {
+            "require": "/usr/bin/ls",
+            "commands": [
+                "/usr/bin/ls -la"
+            ],
+            "outfile": "ls"
+        },
+        {
+            "commands": [
+                "/sbin/ip -4 a s",
+                "/sbin/ip route show"
+            ],
+            "outfile": "network"
+        },
+        {
+            "commands": [
+                "/usr/bin/df -TP",
+                "/usr/bin/lsblk"
+            ],
+            "outfile": "storage"
+        }
+    ],
+    "files": [
+        "/etc/hosts",
+        "/etc/hostname",
+        "/etc/wgetrc",
+        "/etc/rsyncd.conf"
+    ]
+}
+
