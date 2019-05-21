@@ -54,15 +54,17 @@ class SysCap(object):
         for command in command_data['commands']:
             logger.debug(f'Running commands {command["commands"]}')
             write_to_file = '## ' + str(command) + '\n'
-            outfile = os.path.join(
-                self.data_dir, command['outfile'] + f'.{self.phase}')
+            outfile = os.path.join(self.data_dir,
+                                   command['outfile'] + f'.{self.phase}')
 
             if (('require' in command and os.path.exists(command['require']))
                     or ('require' not in command)):
 
                 for sub_command in command['commands']:
                     arg_list = [i for i in sub_command.split()]
-                    cmd = sproc.run(arg_list, stdout=sproc.PIPE, stderr=sproc.STDOUT,
+                    cmd = sproc.run(arg_list,
+                                    stdout=sproc.PIPE,
+                                    stderr=sproc.STDOUT,
                                     encoding='UTF8')
 
                     write_to_file += cmd.stdout + '\n'
@@ -78,8 +80,7 @@ class SysCap(object):
         outfile = ''
         for infile in command_data['files']:
             if os.path.isfile(infile):
-                outfile = os.path.join(self.data_dir,
-                                       os.path.basename(infile))
+                outfile = os.path.join(self.data_dir, os.path.basename(infile))
                 try:
                     shutil.copy2(infile, f'{outfile}.{self.phase}')
                     logger.debug(f'Copying {infile} to {outfile}.{self.phase}')
@@ -93,19 +94,32 @@ class SysCap(object):
         self.pre_phase = pre_phase
         pre_files = glob(f'{self.data_dir}/*.{pre_phase}')
         post_files = glob(f'{self.data_dir}/*.{self.phase}')
-        missing_pre_files = [os.path.basename(i) for i in post_files if i not in pre_files]
-        missing_post_files = [os.path.basename(i) for i in pre_files if i not in post_files]
+        missing_pre_files = [
+            os.path.basename(i) for i in post_files if i not in pre_files
+        ]
+        missing_post_files = [
+            os.path.basename(i) for i in pre_files if i not in post_files
+        ]
         if missing_pre_files:
-            logger.warning(f'Missing {pre_phase} phase files for {", ".join(missing_pre_files)}')
+            logger.warning(
+                f'Missing {pre_phase} phase files for {", ".join(missing_pre_files)}'
+            )
         if missing_post_files:
-            logger.warning(f'Missing {self.phase} phase files for {", ".join(missing_post_files)}')
+            logger.warning(
+                f'Missing {self.phase} phase files for {", ".join(missing_post_files)}'
+            )
 
         for pre_file in pre_files:
             for post_file in post_files:
-                if os.path.splitext(pre_file)[0] == os.path.splitext(post_file)[0]:
+                if os.path.splitext(pre_file)[0] == os.path.splitext(
+                        post_file)[0]:
                     try:
-                        cmd = sproc.run(['diff', '-u', '--color=always', pre_file, post_file],
-                                        stdout=sproc.PIPE, stderr=sproc.STDOUT, encoding='UTF8')
+                        cmd = sproc.run([
+                            'diff', '-u', '--color=always', pre_file, post_file
+                        ],
+                                        stdout=sproc.PIPE,
+                                        stderr=sproc.STDOUT,
+                                        encoding='UTF8')
                         print(cmd.stdout)
                         break
                     except OSError as exc:
@@ -119,15 +133,30 @@ def sanityCheckArgs(**args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', '--base-dir', dest='base_dir', default=os.path.expanduser('~'),
+    parser.add_argument('-b',
+                        '--base-dir',
+                        dest='base_dir',
+                        default=os.path.expanduser('~'),
                         help='base directory for backup files')
-    parser.add_argument('-t', '--tag-dir', dest='tag_dir', default='syscap',
+    parser.add_argument('-t',
+                        '--tag-dir',
+                        dest='tag_dir',
+                        default='syscap',
                         help='base directory for backup files')
-    parser.add_argument('-p', '--phase', dest='phase', required=True,
+    parser.add_argument('-p',
+                        '--phase',
+                        dest='phase',
+                        required=True,
                         help='phase being run')
-    parser.add_argument('-d', '--diff', dest='diff_against', default=False,
+    parser.add_argument('-d',
+                        '--diff',
+                        dest='diff_against',
+                        default=False,
                         help='perform diff')
-    parser.add_argument('-c', '--config', dest='config', default='capture.json',
+    parser.add_argument('-c',
+                        '--config',
+                        dest='config',
+                        default='capture.json',
                         help='supply custom config file')
     args = parser.parse_args()
 
