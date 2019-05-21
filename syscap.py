@@ -4,6 +4,7 @@ import os
 import sys
 import stat
 import shutil
+import logging
 from glob import glob
 import json
 import argparse
@@ -16,6 +17,9 @@ class SysCap(object):
         self.base_dir = base_dir
         self.phase = phase
         self.data_dir = os.path.join(self.base_dir, tag_dir)
+        logging.basicConfig(
+            format='%(levelname)s:%(module)s.%(funcName)s:%(message)s',
+            level=logging.DEBUG)
 
     def _createOutputStructure(self):
         if not os.path.isdir(self.data_dir):
@@ -25,10 +29,11 @@ class SysCap(object):
                 print(exc.strerror)
 
     def _loadConfig(self):
+        logger = logging.getLogger()
         try:
             st = os.stat(self.config)
             if (stat.S_IMODE(st.st_mode) & (stat.S_IWGRP | stat.S_IWOTH)):
-                print(f'Config file should only be writeable by owner')
+                logger.error(f'Config file should only be writeable by owner')
                 sys.exit(1)
 
             with open(self.config, 'r') as config_stream:
@@ -43,10 +48,11 @@ class SysCap(object):
             print(f'Encountered error {exc.strerror}')
 
     def backup(self):
+        logger = logging.getLogger()
         command_data = self._loadConfig()
         # Start by processing the direct commands
         for command in command_data['commands']:
-            print(f'Running commands {command["commands"]}')
+            logger.debug(f'Running commands {command["commands"]}')
             write_to_file = '## ' + str(command) + '\n'
             outfile = os.path.join(
                 self.data_dir, command['outfile'] + f'.{self.phase}')
@@ -76,15 +82,24 @@ class SysCap(object):
                                        os.path.basename(infile))
                 try:
                     shutil.copy2(infile, f'{outfile}.{self.phase}')
-                    print(f'Copying {infile} to {outfile}.{self.phase}')
+                    logger.debug(f'Copying {infile} to {outfile}.{self.phase}')
                 except OSError as exc:
                     print(f'Failed to copy {infile} with error {exc.strerror}')
                     sys.exit(1)
 
     def rundiff(self, pre_phase):
+        logger = logging.getLogger()
+        logger.info('Running diff')
         self.pre_phase = pre_phase
         pre_files = glob(f'{self.data_dir}/*.{pre_phase}')
         post_files = glob(f'{self.data_dir}/*.{self.phase}')
+        missing_pre_files = [os.path.basename(i) for i in post_files if i not in pre_files]
+        missing_post_files = [os.path.basename(i) for i in pre_files if i not in post_files]
+        if missing_pre_files:
+            logger.warning(f'Missing {pre_phase} phase files for {", ".join(missing_pre_files)}')
+        if missing_post_files:
+            logger.warning(f'Missing {self.phase} phase files for {", ".join(missing_post_files)}')
+
         for pre_file in pre_files:
             for post_file in post_files:
                 if os.path.splitext(pre_file)[0] == os.path.splitext(post_file)[0]:
@@ -96,8 +111,6 @@ class SysCap(object):
                     except OSError as exc:
                         print(f'Error: {exc.strerror}')
                         sys.exit(1)
-            else:
-                print(f'No post file for {pre_file}')
 
 
 def sanityCheckArgs(**args):
@@ -124,7 +137,6 @@ def main():
     cap.backup()
 
     if args.diff_against is not False:
-        print('Running diff')
         cap.rundiff(args.diff_against)
 
 
