@@ -108,7 +108,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--base-dir', dest='base_dir', default=os.path.expanduser('~'),
                         help='base directory for backup files')
-    parser.add_argument('-t', '--tag-dir', dest='tag_dir', default='configsnap',
+    parser.add_argument('-t', '--tag-dir', dest='tag_dir', default='syscap',
                         help='base directory for backup files')
     parser.add_argument('-p', '--phase', dest='phase', required=True,
                         help='phase being run')
