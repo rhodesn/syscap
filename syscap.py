@@ -10,7 +10,7 @@ import argparse
 import subprocess as sproc
 
 
-class dataGatherer(object):
+class SysCap(object):
     def __init__(self, config, base_dir, tag_dir, phase):
         self.config = config
         self.base_dir = base_dir
@@ -120,12 +120,12 @@ def main():
 
     sanityCheckArgs(**vars(args))
 
-    run = dataGatherer(args.config, args.base_dir, args.tag_dir, args.phase)
-    run.backup()
+    cap = SysCap(args.config, args.base_dir, args.tag_dir, args.phase)
+    cap.backup()
 
     if args.diff_against is not False:
         print('Running diff')
-        run.rundiff(args.diff_against)
+        cap.rundiff(args.diff_against)
 
 
 if __name__ == '__main__':
