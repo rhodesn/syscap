@@ -26,6 +26,7 @@ class SysCap(object):
         self.logger = logging.getLogger()
 
     def _createOutputStructure(self):
+        """ Create the base_dir/tag_dir output structure """
         if not os.path.isdir(self.data_dir):
             try:
                 os.makedirs(self.data_dir, exist_ok=True)
@@ -33,6 +34,7 @@ class SysCap(object):
                 print(exc.strerror)
 
     def _loadConfig(self):
+        """ Load and parse the json config file """
         logger = logging.getLogger()
         try:
             st = os.stat(self.config)
@@ -52,6 +54,7 @@ class SysCap(object):
             print(f'Encountered error {exc.strerror}')
 
     def backup(self):
+        """ Main backup procedure to run commands and copy files """
         self.logger.info(f'Starting command capture')
         command_data = self._loadConfig()
         # Start by processing the direct commands
