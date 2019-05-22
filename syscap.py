@@ -97,37 +97,35 @@ class SysCap(object):
                     sys.exit(1)
 
     def rundiff(self, pre_phase):
+        """ Main diff procedure to gather file list and diff against matching pre/post """
         self.logger.info('Running diff')
         self.pre_phase = pre_phase
-        pre_files = glob(f'{self.data_dir}/*.{pre_phase}')
-        post_files = glob(f'{self.data_dir}/*.{self.phase}')
-        missing_pre_files = [
-            os.path.basename(i) for i in post_files if i not in pre_files
-        ]
-        missing_post_files = [
-            os.path.basename(i) for i in pre_files if i not in post_files
-        ]
+        pre_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{pre_phase}')]
+        post_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{self.phase}')]
+        missing_pre_files = [i for i in post_files if i not in pre_files]
+        missing_post_files = [i for i in pre_files if i not in post_files]
         if missing_pre_files:
             self.logger.warning(
-                f'Missing {pre_phase} phase files for {", ".join(missing_pre_files)}'
-            )
+                    f'Missing {pre_phase} phase files for {", ".join(missing_pre_files)}')
         if missing_post_files:
             self.logger.warning(
-                f'Missing {self.phase} phase files for {", ".join(missing_post_files)}'
-            )
+                    f'Missing {self.phase} phase files for {", ".join(missing_post_files)}')
 
         for pre_file in pre_files:
             for post_file in post_files:
-                if os.path.splitext(pre_file)[0] == os.path.splitext(
-                        post_file)[0]:
+                if pre_file == post_file:
                     try:
                         cmd = sproc.run([
-                            'diff', '-u', '--color=always', pre_file, post_file
+                            'diff', '-u', '--color=always',
+                            f'{pre_file}.{pre_phase}',
+                            f'{post_file}.{self.phase}'
                         ],
                                         stdout=sproc.PIPE,
                                         stderr=sproc.STDOUT,
                                         encoding='UTF8')
-                        print(cmd.stdout)
+                        if cmd.returncode != 0:
+                            self.logger.warning(f'Diff found\n{cmd.stdout}')
+
                         break
                     except OSError as exc:
                         print(f'Error: {exc.strerror}')
