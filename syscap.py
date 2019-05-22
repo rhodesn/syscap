@@ -12,14 +12,18 @@ import subprocess as sproc
 
 
 class SysCap(object):
-    def __init__(self, config, base_dir, tag_dir, phase):
+    def __init__(self, config, base_dir, tag_dir, phase, verbose):
         self.config = config
         self.base_dir = base_dir
         self.phase = phase
+        self.verbose = verbose
         self.data_dir = os.path.join(self.base_dir, tag_dir)
+
+        _log_level = {True: logging.DEBUG, False: logging.INFO}
         logging.basicConfig(
             format='%(levelname)s:%(module)s.%(funcName)s:%(message)s',
-            level=logging.DEBUG)
+            level=_log_level[self.verbose])
+        self.logger = logging.getLogger()
 
     def _createOutputStructure(self):
         if not os.path.isdir(self.data_dir):
@@ -48,11 +52,11 @@ class SysCap(object):
             print(f'Encountered error {exc.strerror}')
 
     def backup(self):
-        logger = logging.getLogger()
+        self.logger.info(f'Starting command capture')
         command_data = self._loadConfig()
         # Start by processing the direct commands
         for command in command_data['commands']:
-            logger.debug(f'Running commands {command["commands"]}')
+            self.logger.debug(f'Running commands {command["commands"]}')
             write_to_file = '## ' + str(command) + '\n'
             outfile = os.path.join(self.data_dir,
                                    command['outfile'] + f'.{self.phase}')
@@ -77,20 +81,20 @@ class SysCap(object):
                             sys.exit(1)
 
         # Start the file copies
+        self.logger.info(f'Starting file capture')
         outfile = ''
         for infile in command_data['files']:
             if os.path.isfile(infile):
                 outfile = os.path.join(self.data_dir, os.path.basename(infile))
                 try:
                     shutil.copy2(infile, f'{outfile}.{self.phase}')
-                    logger.debug(f'Copying {infile} to {outfile}.{self.phase}')
+                    self.logger.debug(f'Copying {infile} to {outfile}.{self.phase}')
                 except OSError as exc:
                     print(f'Failed to copy {infile} with error {exc.strerror}')
                     sys.exit(1)
 
     def rundiff(self, pre_phase):
-        logger = logging.getLogger()
-        logger.info('Running diff')
+        self.logger.info('Running diff')
         self.pre_phase = pre_phase
         pre_files = glob(f'{self.data_dir}/*.{pre_phase}')
         post_files = glob(f'{self.data_dir}/*.{self.phase}')
@@ -101,11 +105,11 @@ class SysCap(object):
             os.path.basename(i) for i in pre_files if i not in post_files
         ]
         if missing_pre_files:
-            logger.warning(
+            self.logger.warning(
                 f'Missing {pre_phase} phase files for {", ".join(missing_pre_files)}'
             )
         if missing_post_files:
-            logger.warning(
+            self.logger.warning(
                 f'Missing {self.phase} phase files for {", ".join(missing_post_files)}'
             )
 
@@ -138,31 +142,37 @@ def main():
                         dest='base_dir',
                         default=os.path.expanduser('~'),
                         help='base directory for backup files')
-    parser.add_argument('-t',
-                        '--tag-dir',
-                        dest='tag_dir',
-                        default='syscap',
-                        help='base directory for backup files')
-    parser.add_argument('-p',
-                        '--phase',
-                        dest='phase',
-                        required=True,
-                        help='phase being run')
-    parser.add_argument('-d',
-                        '--diff',
-                        dest='diff_against',
-                        default=False,
-                        help='perform diff')
     parser.add_argument('-c',
                         '--config',
                         dest='config',
                         default='capture.json',
                         help='supply custom config file')
+    parser.add_argument('-d',
+                        '--diff',
+                        dest='diff_against',
+                        default=False,
+                        help='perform diff')
+    parser.add_argument('-p',
+                        '--phase',
+                        dest='phase',
+                        required=True,
+                        help='phase being run')
+    parser.add_argument('-t',
+                        '--tag-dir',
+                        dest='tag_dir',
+                        default='syscap',
+                        help='base directory for backup files')
+    parser.add_argument('-v',
+                        '--verbose',
+                        dest='verbose',
+                        action='store_true',
+                        default=False,
+                        help='enable verbose logging')
     args = parser.parse_args()
 
     sanityCheckArgs(**vars(args))
 
-    cap = SysCap(args.config, args.base_dir, args.tag_dir, args.phase)
+    cap = SysCap(args.config, args.base_dir, args.tag_dir, args.phase, args.verbose)
     cap.backup()
 
     if args.diff_against is not False:
