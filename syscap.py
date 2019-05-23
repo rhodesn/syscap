@@ -12,6 +12,7 @@ import subprocess as sproc
 
 
 class SysCap(object):
+
     def __init__(self, config, base_dir, tag_dir, phase, verbose):
         self.config = config
         self.base_dir = base_dir
@@ -20,9 +21,8 @@ class SysCap(object):
         self.data_dir = os.path.join(self.base_dir, tag_dir)
 
         _log_level = {True: logging.DEBUG, False: logging.INFO}
-        logging.basicConfig(
-            format='%(levelname)s:%(module)s.%(funcName)s:%(message)s',
-            level=_log_level[self.verbose])
+        logging.basicConfig(format='%(levelname)s:%(module)s.%(funcName)s:%(message)s',
+                            level=_log_level[self.verbose])
         self.logger = logging.getLogger()
 
     def _createOutputStructure(self):
@@ -62,11 +62,10 @@ class SysCap(object):
         for group in capture_file['command_groups']:
             self.logger.debug(f'Running commands {group["exec"]}')
             write_to_file = '## ' + str(group) + '\n'
-            outfile = os.path.join(self.data_dir,
-                                   group['outfile'] + f'.{self.phase}')
+            outfile = os.path.join(self.data_dir, group['outfile'] + f'.{self.phase}')
 
-            if (('require' in group and os.path.exists(group['require']))
-                    or ('require' not in group)):
+            if (('require' in group and os.path.exists(group['require'])) or
+                ('require' not in group)):
 
                 for sub_command in group['exec']:
                     arg_list = [i for i in sub_command.split()]
@@ -101,25 +100,28 @@ class SysCap(object):
         """ Main diff procedure to gather file list and diff against matching pre/post """
         self.logger.info('Running diff')
         self.pre_phase = pre_phase
-        pre_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{pre_phase}')]
-        post_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{self.phase}')]
+        pre_files = [
+            os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{pre_phase}')
+        ]
+        post_files = [
+            os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{self.phase}')
+        ]
         missing_pre_files = [i for i in post_files if i not in pre_files]
         missing_post_files = [i for i in pre_files if i not in post_files]
 
         if missing_pre_files:
             self.logger.warning(
-                    f'Missing {pre_phase} phase files for {", ".join(missing_pre_files)}')
+                f'Missing {pre_phase} phase files for {", ".join(missing_pre_files)}')
         if missing_post_files:
             self.logger.warning(
-                    f'Missing {self.phase} phase files for {", ".join(missing_post_files)}')
+                f'Missing {self.phase} phase files for {", ".join(missing_post_files)}')
 
         for pre_file in pre_files:
             for post_file in post_files:
                 if pre_file == post_file:
                     try:
                         cmd = sproc.run([
-                            'diff', '-u', '--color=always',
-                            f'{pre_file}.{pre_phase}',
+                            'diff', '-u', '--color=always', f'{pre_file}.{pre_phase}',
                             f'{post_file}.{self.phase}'
                         ],
                                         stdout=sproc.PIPE,
