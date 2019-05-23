@@ -38,16 +38,17 @@ class SysCap(object):
         logger = logging.getLogger()
         try:
             st = os.stat(self.config)
+            # Bail if either group or other have write permissions to the capture file
             if (stat.S_IMODE(st.st_mode) & (stat.S_IWGRP | stat.S_IWOTH)):
                 logger.error(f'Config file should only be writeable by owner')
                 sys.exit(1)
 
             with open(self.config, 'r') as config_stream:
                 try:
-                    command_data = json.load(config_stream)
+                    capture_file = json.load(config_stream)
                     self._createOutputStructure()
 
-                    return command_data
+                    return capture_file
                 except json.JSONDecodeError as exc:
                     print(exc)
         except OSError as exc:
@@ -56,18 +57,18 @@ class SysCap(object):
     def backup(self):
         """ Main backup procedure to run commands and copy files """
         self.logger.info(f'Starting command capture')
-        command_data = self._loadConfig()
+        capture_file = self._loadConfig()
         # Start by processing the direct commands
-        for command in command_data['commands']:
-            self.logger.debug(f'Running commands {command["commands"]}')
-            write_to_file = '## ' + str(command) + '\n'
+        for group in capture_file['command_groups']:
+            self.logger.debug(f'Running commands {group["exec"]}')
+            write_to_file = '## ' + str(group) + '\n'
             outfile = os.path.join(self.data_dir,
-                                   command['outfile'] + f'.{self.phase}')
+                                   group['outfile'] + f'.{self.phase}')
 
-            if (('require' in command and os.path.exists(command['require']))
-                    or ('require' not in command)):
+            if (('require' in group and os.path.exists(group['require']))
+                    or ('require' not in group)):
 
-                for sub_command in command['commands']:
+                for sub_command in group['exec']:
                     arg_list = [i for i in sub_command.split()]
                     cmd = sproc.run(arg_list,
                                     stdout=sproc.PIPE,
@@ -86,7 +87,7 @@ class SysCap(object):
         # Start the file copies
         self.logger.info(f'Starting file capture')
         outfile = ''
-        for infile in command_data['files']:
+        for infile in capture_file['file_list']:
             if os.path.isfile(infile):
                 outfile = os.path.join(self.data_dir, os.path.basename(infile))
                 try:
@@ -104,6 +105,7 @@ class SysCap(object):
         post_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{self.phase}')]
         missing_pre_files = [i for i in post_files if i not in pre_files]
         missing_post_files = [i for i in pre_files if i not in post_files]
+
         if missing_pre_files:
             self.logger.warning(
                     f'Missing {pre_phase} phase files for {", ".join(missing_pre_files)}')
