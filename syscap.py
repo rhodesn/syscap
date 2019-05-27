@@ -26,32 +26,60 @@ class SysCap(object):
                             level=_log_level[self.verbose])
         self.logger = logging.getLogger()
 
+    def initialise(self):
+        default_config = {
+            "command_groups": [{
+                "require": "/usr/bin/ls",
+                "exec": ["/usr/bin/ls -la"],
+                "outfile": "ls"
+            }, {
+                "exec": ["/sbin/ip -4 a s", "/sbin/ip route show"],
+                "outfile": "network"
+            }, {
+                "exec": ["/usr/bin/df -TP", "/usr/bin/lsblk"],
+                "outfile": "storage"
+            }],
+            "file_list": ["/etc/hosts", "/etc/hostname", "/etc/wgetrc", "/etc/rsyncd.conf"]
+        }
+        if not os.path.isfile(self.config) or self.overwrite:
+            with open(self.config, 'w') as outfile_stream:
+                try:
+                    json.dump(default_config, outfile_stream, indent=2)
+                    os.chmod(self.config, 0o640)
+                    self.logger.error(f'Writing config to {self.config}')
+                except OSError as exc:
+                    self.logger.error(f'Writing config to {self.config}: {exc.strerror}')
+                    sys.exit(1)
+        else:
+            self.logger.warning(
+                f'Outfile {self.config} exists, and overwrite (-o) not '
+                'specified... skipping initialising config file')
+
     def _createOutputStructure(self):
         """ Create the base_dir/tag_dir output structure """
         if not os.path.isdir(self.data_dir):
             try:
                 # Create config directory only accessible to user/group running the capture
                 os.makedirs(self.data_dir, mode=0o740, exist_ok=True)
+                self.logger.error(f'Creating output directories')
             except OSError as exc:
                 self.logger.error(f'Creating output directories: {exc.strerror}')
                 sys.exit(1)
 
     def _loadConfig(self):
         """ Load and parse the json config file """
-        logger = logging.getLogger()
         self.logger.debug(f'Using config file {self.config}')
         try:
             st = os.stat(self.config)
             # Bail if either group or other have write permissions to the capture file
             if (stat.S_IMODE(st.st_mode) & (stat.S_IWGRP | stat.S_IWOTH)):
-                logger.error(f'Config file should only be writeable by owner')
+                self.logger.error(f'Config file should only be writeable by owner')
                 sys.exit(1)
 
             with open(self.config, 'r') as config_stream:
                 try:
                     capture_file = json.load(config_stream)
                     self._createOutputStructure()
-
                     return capture_file
                 except json.JSONDecodeError as exc:
                     self.logger.error(
@@ -89,15 +117,16 @@ class SysCap(object):
                                 try:
                                     outfile_stream.write(write_to_file)
                                 except OSError as exc:
-                                    self.logger.error(f'Writing command to {outfile}: exc.strerror')
+                                    self.logger.error(
+                                        f'Writing command to {outfile}: {exc.strerror}')
                                     sys.exit(1)
                     else:
                         self.logger.warning(
-                            f'Outfile {os.path.basename(outfile)} exists, and overwrite not '
-                             'specified... skipping')
+                            f'Outfile {os.path.basename(outfile)} exists, and overwrite (-o) not '
+                            'specified... skipping')
         else:
             self.logger.warning(f'No command groups specified in {self.config}, '
-                              'skipping command capture')
+                                'skipping command capture')
 
         # Check if there are any files to copy
         if 'file_list' in capture_file and len(capture_file['file_list']) > 0:
@@ -113,19 +142,14 @@ class SysCap(object):
                         self.logger.error(f'Failed to copy {infile} with error {exc.strerror}')
                         sys.exit(1)
         else:
-            self.logger.warning(f'No files specified in {self.config}, '
-                              'skipping file capture')
+            self.logger.warning(f'No files specified in {self.config}, skipping file capture')
 
     def rundiff(self, pre_phase):
         """ Main diff procedure to gather file list and diff against matching pre/post """
         self.logger.info('Running diff')
         self.pre_phase = pre_phase
-        pre_files = [
-            os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{pre_phase}')
-        ]
-        post_files = [
-            os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{self.phase}')
-        ]
+        pre_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{pre_phase}')]
+        post_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{self.phase}')]
         missing_pre_files = [i for i in post_files if i not in pre_files]
         missing_post_files = [i for i in pre_files if i not in post_files]
 
@@ -176,12 +200,17 @@ def main():
                         '--diff',
                         dest='diff_against',
                         default=False,
-                        help='perform diff')
+                        help='perform diff against this phase')
+    parser.add_argument('-i',
+                        '--initialise',
+                        action='store_true',
+                        dest='initialise',
+                        default=False,
+                        help='create default config file')
     parser.add_argument('-p',
                         '--phase',
                         dest='phase',
-                        required=True,
-                        help='phase being run')
+                        help='name of phase to be run')
     parser.add_argument('-t',
                         '--tag-dir',
                         dest='tag_dir',
@@ -204,10 +233,16 @@ def main():
     sanityCheckArgs(**vars(args))
 
     cap = SysCap(vars(args))
-    cap.backup()
 
+    if args.initialise:
+        cap.initialise()
+        sys.exit(0)
+    if args.phase:
+        cap.backup()
     if args.diff_against is not False:
         cap.rundiff(args.diff_against)
+
+    return 0
 
 
 if __name__ == '__main__':
