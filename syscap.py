@@ -29,7 +29,8 @@ class SysCap(object):
         """ Create the base_dir/tag_dir output structure """
         if not os.path.isdir(self.data_dir):
             try:
-                os.makedirs(self.data_dir, exist_ok=True)
+                # Create config directory only accessible to user/group running the capture
+                os.makedirs(self.data_dir, mode=0o740, exist_ok=True)
             except OSError as exc:
                 print(exc.strerror)
 
