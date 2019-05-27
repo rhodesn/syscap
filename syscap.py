@@ -13,12 +13,13 @@ import subprocess as sproc
 
 class SysCap(object):
 
-    def __init__(self, config, base_dir, tag_dir, phase, verbose):
-        self.config = config
-        self.base_dir = base_dir
-        self.phase = phase
-        self.verbose = verbose
-        self.data_dir = os.path.join(self.base_dir, tag_dir)
+    def __init__(self, options):
+        self.config = options['config']
+        self.base_dir = options['base_dir']
+        self.phase = options['phase']
+        self.verbose = options['verbose']
+        self.overwrite = options['overwrite']
+        self.data_dir = os.path.join(self.base_dir, options['tag_dir'])
 
         _log_level = {True: logging.DEBUG, False: logging.INFO}
         logging.basicConfig(format='%(levelname)s:%(module)s.%(funcName)s:%(message)s',
@@ -32,11 +33,13 @@ class SysCap(object):
                 # Create config directory only accessible to user/group running the capture
                 os.makedirs(self.data_dir, mode=0o740, exist_ok=True)
             except OSError as exc:
-                print(exc.strerror)
+                self.logger.error(f'Creating output directories: {exc.strerror}')
+                sys.exit(1)
 
     def _loadConfig(self):
         """ Load and parse the json config file """
         logger = logging.getLogger()
+        self.logger.debug(f'Using config file {self.config}')
         try:
             st = os.stat(self.config)
             # Bail if either group or other have write permissions to the capture file
@@ -51,51 +54,67 @@ class SysCap(object):
 
                     return capture_file
                 except json.JSONDecodeError as exc:
-                    print(exc)
+                    self.logger.error(
+                        f'Loading config file {self.config}: JSON parse error line {exc.lineno}')
+                    sys.exit(1)
         except OSError as exc:
-            print(f'Encountered error {exc.strerror}')
+            self.logger.error(f'Loading config file {self.config}: {exc.strerror}')
+            sys.exit(1)
 
     def backup(self):
         """ Main backup procedure to run commands and copy files """
-        self.logger.info(f'Starting command capture')
+        self.logger.info(f'Starting system capture')
         capture_file = self._loadConfig()
         # Start by processing the direct commands
-        for group in capture_file['command_groups']:
-            self.logger.debug(f'Running commands {group["exec"]}')
-            write_to_file = '## ' + str(group) + '\n'
-            outfile = os.path.join(self.data_dir, group['outfile'] + f'.{self.phase}')
+        if 'command_groups' in capture_file and len(capture_file['command_groups']) > 0:
+            for group in capture_file['command_groups']:
+                self.logger.debug(f'Running commands {group["exec"]}')
+                write_to_file = '## ' + str(group) + '\n'
+                outfile = os.path.join(self.data_dir, group['outfile'] + f'.{self.phase}')
 
-            if (('require' in group and os.path.exists(group['require'])) or
-                ('require' not in group)):
+                if (('require' in group and os.path.exists(group['require'])) or
+                    ('require' not in group)):
 
-                for sub_command in group['exec']:
-                    arg_list = [i for i in sub_command.split()]
-                    cmd = sproc.run(arg_list,
-                                    stdout=sproc.PIPE,
-                                    stderr=sproc.STDOUT,
-                                    encoding='UTF8')
+                    if not os.path.isfile(outfile) or self.overwrite:
+                        for sub_command in group['exec']:
+                            arg_list = [i for i in sub_command.split()]
+                            cmd = sproc.run(arg_list,
+                                            stdout=sproc.PIPE,
+                                            stderr=sproc.STDOUT,
+                                            encoding='UTF8')
 
-                    write_to_file += cmd.stdout + '\n'
+                            write_to_file += cmd.stdout + '\n'
 
-                    with open(outfile, 'w') as outfile_stream:
-                        try:
-                            outfile_stream.write(write_to_file)
-                        except OSError as exc:
-                            print(exc.strerror)
-                            sys.exit(1)
+                            with open(outfile, 'w') as outfile_stream:
+                                try:
+                                    outfile_stream.write(write_to_file)
+                                except OSError as exc:
+                                    self.logger.error(f'Writing command to {outfile}: exc.strerror')
+                                    sys.exit(1)
+                    else:
+                        self.logger.warning(
+                            f'Outfile {os.path.basename(outfile)} exists, and overwrite not '
+                             'specified... skipping')
+        else:
+            self.logger.warning(f'No command groups specified in {self.config}, '
+                              'skipping command capture')
 
-        # Start the file copies
-        self.logger.info(f'Starting file capture')
-        outfile = ''
-        for infile in capture_file['file_list']:
-            if os.path.isfile(infile):
-                outfile = os.path.join(self.data_dir, os.path.basename(infile))
-                try:
-                    shutil.copy2(infile, f'{outfile}.{self.phase}')
-                    self.logger.debug(f'Copying {infile} to {outfile}.{self.phase}')
-                except OSError as exc:
-                    print(f'Failed to copy {infile} with error {exc.strerror}')
-                    sys.exit(1)
+        # Check if there are any files to copy
+        if 'file_list' in capture_file and len(capture_file['file_list']) > 0:
+            self.logger.info(f'Starting file capture')
+            outfile = ''
+            for infile in capture_file['file_list']:
+                if os.path.isfile(infile):
+                    outfile = os.path.join(self.data_dir, os.path.basename(infile))
+                    try:
+                        shutil.copy2(infile, f'{outfile}.{self.phase}')
+                        self.logger.debug(f'Copying {infile} to {outfile}.{self.phase}')
+                    except OSError as exc:
+                        self.logger.error(f'Failed to copy {infile} with error {exc.strerror}')
+                        sys.exit(1)
+        else:
+            self.logger.warning(f'No files specified in {self.config}, '
+                              'skipping file capture')
 
     def rundiff(self, pre_phase):
         """ Main diff procedure to gather file list and diff against matching pre/post """
@@ -133,7 +152,7 @@ class SysCap(object):
 
                         break
                     except OSError as exc:
-                        print(f'Error: {exc.strerror}')
+                        self.logger.error(f'Error: {exc.strerror}')
                         sys.exit(1)
 
 
@@ -174,11 +193,17 @@ def main():
                         action='store_true',
                         default=False,
                         help='enable verbose logging')
+    parser.add_argument('-o',
+                        '--overwrite',
+                        dest='overwrite',
+                        action='store_true',
+                        default=False,
+                        help='overwrite existing capture files')
     args = parser.parse_args()
 
     sanityCheckArgs(**vars(args))
 
-    cap = SysCap(args.config, args.base_dir, args.tag_dir, args.phase, args.verbose)
+    cap = SysCap(vars(args))
     cap.backup()
 
     if args.diff_against is not False:
