@@ -133,14 +133,19 @@ class SysCap(object):
             self.logger.info(f'Starting file capture')
             outfile = ''
             for infile in capture_file['file_list']:
-                if os.path.isfile(infile):
-                    outfile = os.path.join(self.data_dir, os.path.basename(infile))
+                outfile = os.path.join(self.data_dir, os.path.basename(infile))
+                if (os.path.isfile(infile) and
+                        (not os.path.isfile(outfile) or self.overwrite)):
                     try:
                         shutil.copy2(infile, f'{outfile}.{self.phase}')
                         self.logger.debug(f'Copying {infile} to {outfile}.{self.phase}')
                     except OSError as exc:
                         self.logger.error(f'Failed to copy {infile} with error {exc.strerror}')
                         sys.exit(1)
+                else:
+                    self.logger.warning(
+                        f'Outfile {os.path.basename(outfile)} exists and overwrite (-o) not '
+                        'specified... skipping')
         else:
             self.logger.warning(f'No files specified in {self.config}, skipping file capture')
 
