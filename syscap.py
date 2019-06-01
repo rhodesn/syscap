@@ -52,7 +52,7 @@ class SysCap(object):
                     sys.exit(1)
         else:
             self.logger.warning(
-                f'Outfile {self.config} exists, and overwrite (-o) not '
+                f'Outfile {self.config} exists and overwrite (-o) not '
                 'specified... skipping initialising config file')
 
     def _createOutputStructure(self):
@@ -61,7 +61,7 @@ class SysCap(object):
             try:
                 # Create config directory only accessible to user/group running the capture
                 os.makedirs(self.data_dir, mode=0o740, exist_ok=True)
-                self.logger.error(f'Creating output directories')
+                self.logger.info(f'Creating output directories')
             except OSError as exc:
                 self.logger.error(f'Creating output directories: {exc.strerror}')
                 sys.exit(1)
@@ -100,8 +100,8 @@ class SysCap(object):
                 write_to_file = '## ' + str(group) + '\n'
                 outfile = os.path.join(self.data_dir, group['outfile'] + f'.{self.phase}')
 
-                if (('require' in group and os.path.exists(group['require'])) or
-                    ('require' not in group)):
+                if ('require' in group and os.path.exists(group['require']) or
+                        'require' not in group):
 
                     if not os.path.isfile(outfile) or self.overwrite:
                         for sub_command in group['exec']:
@@ -122,7 +122,7 @@ class SysCap(object):
                                     sys.exit(1)
                     else:
                         self.logger.warning(
-                            f'Outfile {os.path.basename(outfile)} exists, and overwrite (-o) not '
+                            f'Outfile {os.path.basename(outfile)} exists and overwrite (-o) not '
                             'specified... skipping')
         else:
             self.logger.warning(f'No command groups specified in {self.config}, '
@@ -155,15 +155,14 @@ class SysCap(object):
         self.pre_phase = pre_phase
         pre_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{pre_phase}')]
         post_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{self.phase}')]
-        missing_pre_files = [i for i in post_files if i not in pre_files]
-        missing_post_files = [i for i in pre_files if i not in post_files]
 
-        if missing_pre_files:
-            self.logger.warning(
-                f'Missing {pre_phase} phase files for {", ".join(missing_pre_files)}')
-        if missing_post_files:
-            self.logger.warning(
-                f'Missing {self.phase} phase files for {", ".join(missing_post_files)}')
+        missing_post_files = (file for file in pre_files if file not in post_files)
+        missing_pre_files = (file for file in post_files if file not in pre_files)
+
+        for _file in missing_pre_files:
+            self.logger.warning(f'Missing pre file: {_file}')
+        for _file in missing_post_files:
+            self.logger.warning(f'Missing post file: {_file}')
 
         for pre_file in pre_files:
             for post_file in post_files:
