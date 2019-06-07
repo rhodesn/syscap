@@ -27,6 +27,7 @@ class SysCap(object):
         self.logger = logging.getLogger()
 
     def initialise(self):
+        """ Build out the default config if it doens't exist already """
         default_config = {
             "command_groups": [{
                 "require": "/usr/bin/ls",
@@ -149,7 +150,7 @@ class SysCap(object):
         else:
             self.logger.warning(f'No files specified in {self.config}, skipping file capture')
 
-    def rundiff(self, pre_phase):
+    def rundiff(self, pre_phase: str):
         """ Main diff procedure to gather file list and diff against matching pre/post """
         self.logger.info('Running diff')
         self.pre_phase = pre_phase
