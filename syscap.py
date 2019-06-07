@@ -27,7 +27,7 @@ class SysCap(object):
         self.logger = logging.getLogger()
 
     def initialise(self):
-        """ Build out the default config if it doens't exist already """
+        """Build out the default config if it doens't exist already"""
         default_config = {
             "command_groups": [{
                 "require": "/usr/bin/ls",
@@ -57,7 +57,7 @@ class SysCap(object):
                 'specified... skipping initialising config file')
 
     def _createOutputStructure(self):
-        """ Create the base_dir/tag_dir output structure """
+        """Create the base_dir/tag_dir output structure"""
         if not os.path.isdir(self.data_dir):
             try:
                 # Create config directory only accessible to user/group running the capture
@@ -68,7 +68,7 @@ class SysCap(object):
                 sys.exit(1)
 
     def _loadConfig(self):
-        """ Load and parse the json config file """
+        """Load and parse the json config file"""
         self.logger.debug(f'Using config file {self.config}')
         try:
             st = os.stat(self.config)
@@ -91,7 +91,7 @@ class SysCap(object):
             sys.exit(1)
 
     def backup(self):
-        """ Main backup procedure to run commands and copy files """
+        """Main backup procedure to run commands and copy files"""
         self.logger.info(f'Starting system capture')
         capture_file = self._loadConfig()
         # Start by processing the direct commands
@@ -151,7 +151,7 @@ class SysCap(object):
             self.logger.warning(f'No files specified in {self.config}, skipping file capture')
 
     def rundiff(self, pre_phase: str):
-        """ Main diff procedure to gather file list and diff against matching pre/post """
+        """Main diff procedure to gather file list and diff against matching pre/post"""
         self.logger.info('Running diff')
         self.pre_phase = pre_phase
         pre_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{pre_phase}')]
