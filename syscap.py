@@ -144,9 +144,8 @@ class SysCap(object):
                         self.logger.error(f'Failed to copy {infile} with error {exc.strerror}')
                         sys.exit(1)
                 else:
-                    self.logger.warning(
-                        f'Outfile {os.path.basename(outfile)} exists and overwrite (-o) not '
-                        'specified... skipping')
+                    self.logger.warning(f'Could not capture {infile}, either source file is missing'
+                                        f' or destination already exists and -o not given')
         else:
             self.logger.warning(f'No files specified in {self.config}, skipping file capture')
 
