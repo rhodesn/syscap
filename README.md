@@ -1,7 +1,7 @@
 # Syscap
 
-Syscap is a Python script for capturing Linux system state into tagged files,
-and subsequently performing a diff between two state tags.
+Syscap is a Python script for capturing Linux system state information into
+tagged files, and subsequently performing a diff between two state tags.
 
 ## Installation
 
