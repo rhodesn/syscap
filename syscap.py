@@ -149,20 +149,28 @@ class SysCap(object):
         else:
             self.logger.warning(f'No files specified in {self.config}, skipping file capture')
 
+    @staticmethod
+    def _buildFileLists(data_dir, pre_phase, post_phase):
+        """Build a list of pre/post/missing files in the data directory"""
+        pre_files = [os.path.splitext(i)[0] for i in glob(f'{data_dir}/*.{pre_phase}')]
+        post_files = [os.path.splitext(i)[0] for i in glob(f'{data_dir}/*.{post_phase}')]
+
+        missing_files = [file for file in pre_files if file not in post_files]
+        missing_files.extend([file for file in post_files if file not in pre_files])
+
+        return (pre_files, post_files, missing_files)
+
     def rundiff(self, pre_phase: str):
         """Main diff procedure to gather file list and diff against matching pre/post"""
         self.logger.info('Running diff')
         self.pre_phase = pre_phase
-        pre_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{pre_phase}')]
-        post_files = [os.path.splitext(i)[0] for i in glob(f'{self.data_dir}/*.{self.phase}')]
 
-        missing_post_files = (file for file in pre_files if file not in post_files)
-        missing_pre_files = (file for file in post_files if file not in pre_files)
-
-        for _file in missing_pre_files:
-            self.logger.warning(f'Missing pre file: {_file}')
-        for _file in missing_post_files:
-            self.logger.warning(f'Missing post file: {_file}')
+        pre_files, post_files, missing_files = self._buildFileLists(
+                self.data_dir,
+                self.pre_phase,
+                self.post_phase)
+        for it in missing_files:
+            self.logger.warning(f'Missing phase file {it}')
 
         for pre_file in pre_files:
             for post_file in post_files:
