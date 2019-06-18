@@ -178,13 +178,15 @@ class SysCap(object):
                     try:
                         cmd = sproc.run([
                             'diff', '-u', '--color=always', f'{pre_file}.{pre_phase}',
-                            f'{post_file}.{self.phase}'
-                        ],
-                                        stdout=sproc.PIPE,
-                                        stderr=sproc.STDOUT,
-                                        encoding='UTF8')
-                        if cmd.returncode != 0:
+                            f'{post_file}.{self.phase}'],
+                            capture_output=True, encoding='UTF8')
+
+                        if cmd.returncode == 1:
                             self.logger.warning(f'Diff found\n{cmd.stdout}')
+                        elif cmd.returncode == 0:
+                            self.logger.debug(f'No differences found')
+                        else:
+                            self.logger.error(f'Error running diff\n{cmd.stderr}')
 
                         break
                     except OSError as exc:
