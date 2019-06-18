@@ -108,11 +108,13 @@ class SysCap(object):
                         for sub_command in group['exec']:
                             arg_list = [i for i in sub_command.split()]
                             cmd = sproc.run(arg_list,
-                                            stdout=sproc.PIPE,
-                                            stderr=sproc.STDOUT,
+                                            capture_output=True,
                                             encoding='UTF8')
 
-                            write_to_file += cmd.stdout + '\n'
+                            if cmd.returncode == 0:
+                                write_to_file += cmd.stdout + '\n'
+                            else:
+                                self.logger.error(f'Command exited with::{cmd.stderr}')
 
                             with open(outfile, 'w') as outfile_stream:
                                 try:
