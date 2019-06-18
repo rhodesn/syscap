@@ -21,7 +21,7 @@ class SysCap(object):
         self.overwrite = options['overwrite']
         self.data_dir = os.path.join(self.base_dir, options['tag_dir'])
 
-        _log_level = {True: logging.DEBUG, False: logging.INFO}
+        _log_level = {True: logging.DEBUG, False: logging.WARN}
         logging.basicConfig(format='%(levelname)s:%(module)s.%(funcName)s:%(message)s',
                             level=_log_level[self.verbose])
         self.logger = logging.getLogger()
