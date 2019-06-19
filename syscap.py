@@ -52,9 +52,8 @@ class SysCap(object):
                     self.logger.error(f'Writing config to {self.config}: {exc.strerror}')
                     sys.exit(1)
         else:
-            self.logger.warning(
-                f'Outfile {self.config} exists and overwrite (-o) not '
-                'specified... skipping initialising config file')
+            self.logger.warning(f'Outfile {self.config} exists and overwrite (-o) not '
+                                'specified... skipping initialising config file')
 
     def _createOutputStructure(self):
         """Create the base_dir/tag_dir output structure"""
@@ -107,9 +106,7 @@ class SysCap(object):
                     if not os.path.isfile(outfile) or self.overwrite:
                         for sub_command in group['exec']:
                             arg_list = [i for i in sub_command.split()]
-                            cmd = sproc.run(arg_list,
-                                            capture_output=True,
-                                            encoding='UTF8')
+                            cmd = sproc.run(arg_list, capture_output=True, encoding='UTF8')
 
                             if cmd.returncode == 0:
                                 write_to_file += cmd.stdout + '\n'
@@ -137,8 +134,7 @@ class SysCap(object):
             outfile = ''
             for infile in capture_file['file_list']:
                 outfile = os.path.join(self.data_dir, os.path.basename(infile))
-                if (os.path.isfile(infile) and
-                        (not os.path.isfile(outfile) or self.overwrite)):
+                if (os.path.isfile(infile) and (not os.path.isfile(outfile) or self.overwrite)):
                     try:
                         shutil.copy2(infile, f'{outfile}.{self.phase}')
                         self.logger.debug(f'Copying {infile} to {outfile}.{self.phase}')
@@ -167,10 +163,8 @@ class SysCap(object):
         self.logger.info('Running diff')
         self.pre_phase = pre_phase
 
-        pre_files, post_files, missing_files = self._buildFileLists(
-                self.data_dir,
-                self.pre_phase,
-                self.post_phase)
+        pre_files, post_files, missing_files = self._buildFileLists(self.data_dir, self.pre_phase,
+                                                                    self.post_phase)
         for it in missing_files:
             self.logger.warning(f'Missing phase file {it}')
 
@@ -178,10 +172,11 @@ class SysCap(object):
             for post_file in post_files:
                 if pre_file == post_file:
                     try:
-                        cmd = sproc.run([
-                            'diff', '-u', '--color=always', f'{pre_file}.{pre_phase}',
-                            f'{post_file}.{self.phase}'],
-                            capture_output=True, encoding='UTF8')
+                        cmd = sproc.run(
+                            ['diff', '-u', '--color=always', f'{pre_file}.{pre_phase}',
+                             f'{post_file}.{self.phase}'],
+                            capture_output=True,
+                            encoding='UTF8')
 
                         if cmd.returncode == 1:
                             self.logger.warning(f'Diff found\n{cmd.stdout}')
