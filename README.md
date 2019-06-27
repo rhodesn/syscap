@@ -8,10 +8,6 @@ tagged files, and subsequently performing a diff between two state tags.
 For the time being simply clone the repo down to your home directory and run
 directly.
 
-```bash
-git clone https://github.com/nrhodes91/syscap.git
-```
-
 ## Usage
 
 ```bash
