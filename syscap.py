@@ -2,7 +2,6 @@
 
 import os
 import sys
-import stat
 import shutil
 import logging
 from glob import glob
@@ -70,12 +69,6 @@ class SysCap(object):
         """Load and parse the json config file"""
         self.logger.debug(f'Using config file {self.config}')
         try:
-            st = os.stat(self.config)
-            # Bail if either group or other have write permissions to the capture file
-            if (stat.S_IMODE(st.st_mode) & (stat.S_IWGRP | stat.S_IWOTH)):
-                self.logger.error(f'Config file should only be writeable by owner')
-                sys.exit(1)
-
             with open(self.config, 'r') as config_stream:
                 try:
                     capture_file = json.load(config_stream)
